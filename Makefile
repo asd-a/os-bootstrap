@@ -100,7 +100,7 @@ target/bootstrap: target/subvolume nvidia.deb doca.deb
 	cp ./mnt/var/nvidia-driver-local-repo-debian*/nvidia-driver-local-*-keyring.gpg ./mnt/usr/share/keyrings/
 
 	@echo "Setting kernel cmdline"
-	echo "root=UUID=`findmnt -no UUID ./mnt` rw console=tty0 console=ttyS0,115200n8" > ./mnt/etc/kernel/cmdline
+	echo "root=UUID=`findmnt -no UUID ./mnt` rw console=tty0 console=ttyS0,115200n8 iommu=pt" > ./mnt/etc/kernel/cmdline
 	
 	@echo "Generating fstab"
 	./genfstab > ./mnt/etc/fstab
