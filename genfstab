@@ -8,9 +8,9 @@ PATERN="%s\t%s\t%s\t%s\t%s\t%s"
 
 BOOT=$(printf "$PATERN" "UUID=$UUID_BOOT" "/boot" "vfat" "defaults,umask=027" "0" "2")
 ROOT=$(printf "$PATERN" "UUID=$UUID_ROOT" "/" "btrfs" "defaults" "0" "1")
-HOME=$(printf "$PATERN" "10.0.0.1:/home" "/home" "nfs" "$NFS_OPTIONS" "0" "0")
-OPT=$(printf "$PATERN" "10.0.0.1:/opt" "/opt" "nfs" "$NFS_OPTIONS" "0" "0")
-MNT=$(printf "$PATERN" "10.0.0.1:/mnt" "/mnt" "nfs" "$NFS_OPTIONS" "0" "0")
+HOME=$(printf "$PATERN" "10.0.0.0:/home" "/home" "nfs" "$NFS_OPTIONS" "0" "0")
+OPT=$(printf "$PATERN" "10.0.0.0:/opt" "/opt" "nfs" "$NFS_OPTIONS" "0" "0")
+MNT=$(printf "$PATERN" "10.0.0.0:/mnt" "/mnt" "nfs" "$NFS_OPTIONS" "0" "0")
 
 cat <<EOF
 # /etc/fstab: static file system information.
