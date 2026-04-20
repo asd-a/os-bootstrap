@@ -142,7 +142,7 @@ target/configure: target/driver
 	cat ssh_keys.txt > ./mnt/root/.ssh/authorized_keys
 
 	@echo "Setting up OpenSM and InfiniBand modules"
-	cp modules-load.d/ib.conf ./mnt/etc/modules-load.d/ib.conf
+	cp modules-load.d/* ./mnt/etc/modules-load.d/
 
 	@echo "Setting up networkd and resolved services"
 	arch-chroot ./mnt systemctl enable systemd-networkd systemd-resolved
