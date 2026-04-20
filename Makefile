@@ -104,6 +104,7 @@ target/bootstrap: target/subvolume nvidia.deb doca.deb
 	
 	@echo "Generating fstab"
 	./genfstab > ./mnt/etc/fstab
+	mkdir ./mnt/mnt/niuniu
 
 	@echo "Setting up APT sources"
 	rm ./mnt/etc/apt/sources.list
