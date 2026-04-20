@@ -143,8 +143,6 @@ target/configure: target/driver
 
 	@echo "Setting up OpenSM and InfiniBand modules"
 	cp modules-load.d/ib.conf ./mnt/etc/modules-load.d/ib.conf
-	sed 's/$${HOSTID}/${HOSTID}/g' systemd/system/opensm.service > ./mnt/etc/systemd/system/opensm.service
-	arch-chroot ./mnt systemctl enable opensm
 
 	@echo "Setting up networkd and resolved services"
 	arch-chroot ./mnt systemctl enable systemd-networkd systemd-resolved
