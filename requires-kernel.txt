@@ -26,6 +26,7 @@ dosfstools
 zfsutils-linux
 zfs-dkms
 zfs-zed
+e2fsprogs
 
 # [systemd]
 systemd
