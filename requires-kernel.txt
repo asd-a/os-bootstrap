@@ -27,6 +27,7 @@ zfsutils-linux
 zfs-dkms
 zfs-zed
 e2fsprogs
+fuse2fs
 
 # [systemd]
 systemd
