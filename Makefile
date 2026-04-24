@@ -169,7 +169,8 @@ target/configure: target/bootstrap
 	cp systemd/network/20-bond0.netdev ./mnt/etc/systemd/network/20-bond0.netdev
 	sed 's/$${HOSTID}/${HOSTID}/g' systemd/network/20-bond0.network > ./mnt/etc/systemd/network/20-bond0.network
 	cp systemd/network/20-enp-bond0.network ./mnt/etc/systemd/network/20-enp-bond0.network
-	
+	./chroot -r ./mnt systemctl enable systemd-networkd systemd-resolved
+
 	@touch $@
 
 target/configure-ib: target/configure target/ib
