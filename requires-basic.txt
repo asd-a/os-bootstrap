@@ -4,6 +4,7 @@ sudo
 login
 info
 tzdata
+libssl-dev
 
 # [https]
 apt-transport-https
