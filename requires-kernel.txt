@@ -1,66 +1,13 @@
-# [shell]
-bash
-dash
-zsh
-fish
-
-# [editor]
-vim
-neovim
-nano
-less
-
 # [linux]
-linux-headers-amd64
-linux-image-amd64
-kmod
-firmware-linux-free
-firmware-linux-nonfree
-build-essential
+linux-headers-generic
+linux-image-generic
+intel-microcode
+amd64-microcode
 
-# [fs]
-nfs-common
-nfs-kernel-server
-btrfs-progs
-dosfstools
+# [zfs]
 zfsutils-linux
 zfs-dkms
 zfs-zed
-e2fsprogs
-fuse2fs
 
-# [systemd]
-systemd
-systemd-sysv
+# [boot]
 systemd-boot
-systemd-boot-efi
-systemd-timesyncd
-systemd-resolved
-
-# [network]
-iptables
-iproute2
-iputils-ping
-openssh-client
-openssh-server
-ipmitool
-openipmi
-ethtool
-
-# [tools]
-pciutils
-nvtop
-efibootmgr
-rsync
-zstd
-less
-patch
-tmux
-git
-wget
-curl
-htop
-kexec-tools
-numactl
-hwloc
-lsof

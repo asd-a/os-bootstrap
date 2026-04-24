@@ -1,14 +1,23 @@
-DEBIAN_VERSION ?= trixie
 HOSTID ?= 1
 HOSTNAME ?= i
 
-clean-deb: 
+.DEFAULT: clean
+
+clean-all: clean clean-deb clean-rootfs
+
+clean-deb:
 	rm -rf nvidia.deb doca.deb
+
+clean-rootfs:
+	rm -rf rootfs.tar.xz
+	rm -rf ubuntu-base.tar.gz
 
 clean:
 	rm -rf target
 	${MAKE} util/unmount
 	rm -rf mnt 
+	umount -R rootfs/* || true
+	rm -rf rootfs
 	rm -rf qemu-run
 
 util/mount:
@@ -21,8 +30,47 @@ util/unmount:
 	umount ./mnt/boot 	|| true
 	umount ./mnt 		|| true
 
+nvidia.deb:
+	@echo "Downloading NVIDIA driver deb package"
+	wget https://developer.download.nvidia.com/compute/nvidia-driver/590.48.01/local_installers/nvidia-driver-local-repo-debian13-590.48.01_1.0-1_amd64.deb -O $@
+
+doca.deb:
+	@echo "Downloading DOCA driver deb package"
+	wget https://www.mellanox.com/downloads/DOCA/DOCA_v3.3.0/host/doca-host_3.3.0-088000-26.01-debian13_amd64.deb -O $@
+
+ubuntu-base.tar.gz:
+	@echo "Downloading Ubuntu base tarball"
+	wget https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.4-base-amd64.tar.gz -O $@
+
+rootfs.tar.gz: ubuntu-base.tar.gz
+	@echo "Create Ubuntu rootfs"
+
+	mkdir -p rootfs
+	tar -xapf ubuntu-base.tar.gz -C ./rootfs
+	echo "nameserver 8.8.8.8" > ./rootfs/etc/resolv.conf
+	./chroot -r ./rootfs apt update
+	./chroot -r ./rootfs apt upgrade -y --no-install-recommends --show-progress -V --purge
+
+	./chroot -r ./rootfs apt install -y --no-install-recommends --show-progress -V --purge \
+		`grep -vE "^\s*#" requires-basic.txt | tr "\n" " "`
+
+	./chroot -r ./rootfs dpkg-reconfigure locales
+
+	@echo "Cleaning up apt cache"
+	./chroot -r ./rootfs apt clean
+	./chroot -r ./rootfs apt autoclean
+
+	@echo "Setting root password"
+	cat passwd.txt | ./chroot -r ./rootfs chpasswd -e
+	
+	@echo "Setting root ssh authorized keys"
+	mkdir -p ./rootfs/root/.ssh
+	cat ssh_keys.txt > ./rootfs/root/.ssh/authorized_keys
+
+	tar -capf $@ -C ./rootfs .
+
 target/dependency:
-	apt install gdisk btrfs-progs parted dosfstools debootstrap qemu-system-x86 ovmf arch-install-scripts
+	apt install gdisk btrfs-progs parted dosfstools qemu-system-x86 ovmf
 
 	mkdir -p target
 	@touch $@
@@ -75,29 +123,13 @@ target/subvolume: target/format
 
 	btrfs su create mnt/var
 	btrfs su create mnt/var/cache
-	btrfs su create mnt/opt
 	chattr +C mnt/var/cache
 
 	@touch $@
 
-nvidia.deb:
-	@echo "Downloading NVIDIA driver deb package"
-	wget https://developer.download.nvidia.com/compute/nvidia-driver/590.48.01/local_installers/nvidia-driver-local-repo-debian13-590.48.01_1.0-1_amd64.deb -O $@
-
-doca.deb:
-	@echo "Downloading DOCA driver deb package"
-	wget https://www.mellanox.com/downloads/DOCA/DOCA_v3.3.0/host/doca-host_3.3.0-088000-26.01-debian13_amd64.deb -O $@
-
-target/bootstrap: target/subvolume nvidia.deb doca.deb
-	@echo "Bootstrapping Debian ${DEBIAN_VERSION} into ./mnt"
-	debootstrap \
-		--arch=amd64 \
-		--variant=minbase \
-		${DEBIAN_VERSION} ./mnt
-	
-	# install nivida gpu driver and ofed driver package source lists and keyrings into the chroot environment
-	dpkg --root=./mnt -i doca.deb nvidia.deb
-	cp ./mnt/var/nvidia-driver-local-repo-debian*/nvidia-driver-local-*-keyring.gpg ./mnt/usr/share/keyrings/
+target/bootstrap: target/subvolume rootfs.tar.gz
+	@echo "Bootstrapping Ubuntu into ./mnt"
+	tar -xapf rootfs.tar.gz -C ./mnt
 
 	@echo "Setting kernel cmdline"
 	echo "root=UUID=`findmnt -no UUID ./mnt` rw console=tty0 console=ttyS0,115200n8 iommu=pt" > ./mnt/etc/kernel/cmdline
@@ -106,60 +138,57 @@ target/bootstrap: target/subvolume nvidia.deb doca.deb
 	./genfstab > ./mnt/etc/fstab
 	mkdir ./mnt/mnt/niuniu
 
-	@echo "Setting up APT sources"
-	rm ./mnt/etc/apt/sources.list
-	cp ./mnt/usr/share/doc/apt/examples/debian.sources ./mnt/etc/apt/sources.list.d
-
 	@echo "Installing necessary packages"
-	arch-chroot ./mnt apt update
-	arch-chroot ./mnt apt install -y --no-install-recommends --show-progress -V \
-		`grep -vE "^\s*#" requires-basic.txt | tr "\n" " "`
+	./chroot -r ./mnt apt update
 
-	arch-chroot ./mnt dpkg-reconfigure locales tzdata
-
-	arch-chroot ./mnt apt install -y --no-install-recommends --show-progress -V \
+	./chroot -r ./mnt apt install -y --no-install-recommends --show-progress -V --purge \
 		`grep -vE "^\s*#" requires-kernel.txt | tr "\n" " "`
 
 	@touch $@
 
-target/driver: target/bootstrap
-	@echo "Installing NVIDIA and DOCA drivers"
+target/ib: target/bootstrap doca.deb
+	@echo "Installing DOCA drivers"
 
-	arch-chroot ./mnt apt update
-	arch-chroot ./mnt apt install -y --no-install-recommends --show-progress -V \
-		`grep -vE "^\s*#" requires-driver.txt | tr "\n" " "`
+# 	todo
 
 	@touch $@
 
-target/configure: target/driver
-	@echo "Setting root password"
-	cat passwd.txt | arch-chroot ./mnt chpasswd -e
+target/nvidia: target/bootstrap nvidia.deb
+	@echo "Installing NVIDIA drivers"
+
+# 	todo
+
+	@touch $@
+
+target/configure: target/bootstrap
 	
 	@echo "Setting hostname"
 	echo "${HOSTNAME}${HOSTID}" > ./mnt/etc/hostname
-
-	@echo "Setting root ssh authorized keys"
-	mkdir -p ./mnt/root/.ssh
-	cat ssh_keys.txt > ./mnt/root/.ssh/authorized_keys
-
-	@echo "Setting up OpenSM and InfiniBand modules"
-	cp modules-load.d/* ./mnt/etc/modules-load.d/
-
+	
 	@echo "Setting up networkd and resolved services"
-	arch-chroot ./mnt systemctl enable systemd-networkd systemd-resolved
-	ln -sf ../run/systemd/resolve/stub-resolv.conf ./mnt/etc/resolv.conf
 	cp systemd/network/20-bond0.netdev ./mnt/etc/systemd/network/20-bond0.netdev
 	sed 's/$${HOSTID}/${HOSTID}/g' systemd/network/20-bond0.network > ./mnt/etc/systemd/network/20-bond0.network
 	cp systemd/network/20-enp-bond0.network ./mnt/etc/systemd/network/20-enp-bond0.network
 	
-	@echo "Setting up IP over IB"
-	cp systemd/network/20-bond1.netdev ./mnt/etc/systemd/network/20-bond1.netdev
-	sed 's/$${HOSTID}/${HOSTID}/g' systemd/network/20-bond1.network > ./mnt/etc/systemd/network/20-bond1.network
-	cp systemd/network/20-ib-bond1.network ./mnt/etc/systemd/network/20-ib-bond1.network
+	@touch $@
+
+target/configure-ib: target/configure target/ib
+	@echo "Configuring InfiniBand"
+	
+# 	todo
 
 	@touch $@
 
-target/all: target/configure
+
+target/configure-nvidia: target/configure target/nvidia
+	@echo "Configuring NVIDIA"
+	
+# 	todo
+
+	@touch $@
+
+
+target/all: target/configure target/configure-ib target/configure-nvidia
 
 test/boot:
 	@test "${DISK}" != "" || (echo "Specify DISK=/dev/..."; exit 1)
@@ -177,7 +206,7 @@ test/boot:
 		  -device virtio-blk-pci,drive=disk0,bootindex=0
 
 test/chroot:
-	arch-chroot ./mnt
+	./chroot -r ./mnt
 
 test/scrub:
 	btrfs scrub start -B mnt

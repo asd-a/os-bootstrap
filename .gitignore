@@ -1,5 +1,7 @@
 mnt
 target
 qemu-run
+rootfs
 *.swp
 *.deb
+*.tar.gz

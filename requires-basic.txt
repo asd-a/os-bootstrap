@@ -12,4 +12,61 @@ ca-certificates
 # [terminal]
 dialog
 readline-common
+libterm-readline-gnu-perl
 locales
+
+# [shell]
+bash
+dash
+zsh
+fish
+
+# [editor]
+vim
+nano
+less
+
+# [kernel]
+kmod
+build-essential
+
+# [fs]
+nfs-common
+nfs-kernel-server
+btrfs-progs
+dosfstools
+e2fsprogs
+fuse2fs
+
+# [systemd]
+systemd
+systemd-sysv
+systemd-resolved
+
+# [network]
+iptables
+iproute2
+iputils-ping
+openssh-client
+openssh-server
+ipmitool
+openipmi
+ethtool
+
+# [tools]
+pciutils
+nvtop
+efibootmgr
+rsync
+zstd
+less
+patch
+tmux
+git
+wget
+curl
+htop
+kexec-tools
+numactl
+hwloc
+lsof
