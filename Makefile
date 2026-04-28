@@ -151,6 +151,7 @@ target/configure: target/driver
 	cp systemd/network/20-bond0.netdev ./mnt/etc/systemd/network/20-bond0.netdev
 	sed 's/$${HOSTID}/${HOSTID}/g' systemd/network/20-bond0.network > ./mnt/etc/systemd/network/20-bond0.network
 	cp systemd/network/20-enp-bond0.network ./mnt/etc/systemd/network/20-enp-bond0.network
+    cp sysctl.d/* ./mnt/etc/sysctl.d/
 	
 	@echo "Setting up IP over IB"
 	cp systemd/network/20-bond1.netdev ./mnt/etc/systemd/network/20-bond1.netdev
