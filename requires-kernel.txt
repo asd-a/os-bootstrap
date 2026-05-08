@@ -57,6 +57,7 @@ less
 patch
 tmux
 git
+git-lfs
 wget
 curl
 htop
