@@ -2,12 +2,25 @@ DEBIAN_VERSION ?= trixie
 HOSTID ?= 1
 HOSTNAME ?= i
 
+USE_DOCA ?= 1
+USE_NVIDIA ?= 1
+USE_AMD ?= 0
+
+clean-all: clean clean-deb clean-key clean-rootfs
+
 clean-deb: 
 	rm -rf nvidia.deb doca.deb
+
+clean-rootfs:
+	rm -rf rootfs.tar.xz
+
+clean-key:
+	rm -rf id_ed25519 id_ed25519.pub
 
 clean:
 	rm -rf target
 	${MAKE} util/unmount
+	rm -rf rootfs
 	rm -rf mnt 
 	rm -rf qemu-run
 
@@ -22,7 +35,7 @@ util/unmount:
 	umount ./mnt 		|| true
 
 target/dependency:
-	apt install gdisk btrfs-progs parted dosfstools debootstrap qemu-system-x86 ovmf arch-install-scripts
+	apt install gdisk btrfs-progs parted dosfstools debootstrap qemu-system-x86 ovmf
 
 	mkdir -p target
 	@touch $@
@@ -80,87 +93,200 @@ target/subvolume: target/format
 
 	@touch $@
 
-nvidia.deb:
+nvidia.deb: nvidia-url.txt
 	@echo "Downloading NVIDIA driver deb package"
-	wget https://developer.download.nvidia.com/compute/nvidia-driver/590.48.01/local_installers/nvidia-driver-local-repo-debian13-590.48.01_1.0-1_amd64.deb -O $@
+	wget `cat nvidia-url.txt` -O $@
 
-doca.deb:
+doca.deb: doca-url.txt
 	@echo "Downloading DOCA driver deb package"
-	wget https://www.mellanox.com/downloads/DOCA/DOCA_v3.3.0/host/doca-host_3.3.0-088000-26.01-debian13_amd64.deb -O $@
+	wget `cat doca-url.txt` -O $@
 
-target/bootstrap: target/subvolume nvidia.deb doca.deb
-	@echo "Bootstrapping Debian ${DEBIAN_VERSION} into ./mnt"
+amd.deb: amd-url.txt
+	@echo "Downloading AMD driver deb package"
+	wget `cat amd-url.txt` -O $@
+
+id_ed25519:
+	@echo "Generating SSH key pair"
+	ssh-keygen -t ed25519 -f id_ed25519 -N ""
+
+rootfs.tar.xz: requires-basic.txt requires-kernel.txt passwd.txt id_ed25519 ssh_keys.txt nfs.conf
+	${MAKE} target/dependency
+	
+	mkdir -p rootfs
+
+	@echo "Bootstrapping Debian ${DEBIAN_VERSION} into ./rootfs"
 	debootstrap \
 		--arch=amd64 \
 		--variant=minbase \
-		${DEBIAN_VERSION} ./mnt
-	
-	# install nivida gpu driver and ofed driver package source lists and keyrings into the chroot environment
-	dpkg --root=./mnt -i doca.deb nvidia.deb
-	cp ./mnt/var/nvidia-driver-local-repo-debian*/nvidia-driver-local-*-keyring.gpg ./mnt/usr/share/keyrings/
+		${DEBIAN_VERSION} ./rootfs
 
-	@echo "Setting kernel cmdline"
-	echo "root=UUID=`findmnt -no UUID ./mnt` rw console=tty0 console=ttyS0,115200n8 iommu=pt" > ./mnt/etc/kernel/cmdline
+	@echo "Setting up APT sources"
+	rm ./rootfs/etc/apt/sources.list
+	cp ./rootfs/usr/share/doc/apt/examples/debian.sources ./rootfs/etc/apt/sources.list.d
+
+	@echo "Installing necessary packages"
+	./chroot ./rootfs apt update
+	./chroot ./rootfs apt install -y --no-install-recommends --show-progress -V \
+		`grep -vE "^\s*#" requires-basic.txt | tr "\n" " "`
+
+	./chroot ./rootfs dpkg-reconfigure locales tzdata
+
+	./chroot ./rootfs apt install -y --no-install-recommends --show-progress -V \
+		`grep -vE "^\s*#" requires-kernel.txt | tr "\n" " "`
 	
-	@echo "Generating fstab"
+	@echo "Setting up networkd and resolved services"
+	./chroot ./rootfs systemctl enable systemd-networkd systemd-resolved
+	ln -sf ../run/systemd/resolve/stub-resolv.conf ./rootfs/etc/resolv.conf
+
+	@echo "Cleaning up apt cache"
+	./chroot -r ./rootfs apt clean
+	./chroot -r ./rootfs apt autoclean
+
+	@echo "Setting root password"
+	cat passwd.txt | ./chroot -r ./rootfs chpasswd -e
+
+	@echo "Setting root ssh authorized keys"
+	mkdir -p -m 700 ./rootfs/root/.ssh
+	cat ssh_keys.txt > ./rootfs/root/.ssh/authorized_keys
+	cat id_ed25519.pub >> ./rootfs/root/.ssh/authorized_keys
+	cp id_ed25519 ./rootfs/root/.ssh/
+	cp id_ed25519.pub ./rootfs/root/.ssh/
+
+	@echo "Setting up NFS configuration"
+	cp nfs.conf ./rootfs/etc/nfs.conf
+
+	@echo "Packing root filesystem into $@"
+	tar -C rootfs -capf $@ .
+
+
+target/bootstrap: rootfs.tar.xz target/subvolume
+	@echo "Bootstrapping Debian into ./mnt"
+	tar -xapf rootfs.tar.gz -C ./mnt
+
+	@touch $@
+
+update/passwd: passwd.txt target/bootstrap
+	@echo "Updating password"
+	cat passwd.txt | ./chroot -r ./mnt chpasswd -e
+
+update/ssh-keys: id_ed25519 ssh_keys.txt target/bootstrap
+	@echo "Updating SSH authorized keys"
+	mkdir -p -m 700 ./mnt/root/.ssh
+	cat ssh_keys.txt > ./mnt/root/.ssh/authorized_keys
+	cat id_ed25519.pub >> ./mnt/root/.ssh/authorized_keys
+	cp id_ed25519 ./mnt/root/.ssh/
+	cp id_ed25519.pub ./mnt/root/.ssh/
+
+update/hostname: target/bootstrap
+	@echo "Updating hostname"
+	echo ${HOSTNAME} > ./mnt/etc/hostname
+
+update/cmdline: cmdline target/bootstrap
+	@echo "Updating kernel cmdline"
+	./cmdline > ./mnt/etc/kernel/cmdline
+	./chroot -r ./mnt update-initramfs -u
+
+update/fstab: genfstab target/bootstrap
+	@echo "Updating fstab"
 	./genfstab > ./mnt/etc/fstab
 	mkdir ./mnt/mnt/niuniu
 
-	@echo "Setting up APT sources"
-	rm ./mnt/etc/apt/sources.list
-	cp ./mnt/usr/share/doc/apt/examples/debian.sources ./mnt/etc/apt/sources.list.d
+NETWORK_CONF := systemd/network/20-bond0.netdev systemd/network/20-bond0.network systemd/network/20-enp-bond0.network 
+update/network: ${NETWORK_CONF} target/bootstrap
+	@echo "Updating network configuration"
+	cp systemd/network/20-bond0.netdev ./mnt/etc/systemd/network/
+	sed 's/$${HOSTID}/${HOSTID}/g' systemd/network/20-bond0.network > ./mnt/etc/systemd/network/20-bond0.network
+	cp systemd/network/20-enp-bond0.network ./mnt/etc/systemd/network/
 
-	@echo "Installing necessary packages"
-	arch-chroot ./mnt apt update
-	arch-chroot ./mnt apt install -y --no-install-recommends --show-progress -V \
-		`grep -vE "^\s*#" requires-basic.txt | tr "\n" " "`
+SYSCTL_CONF := $(wildcard sysctl.d/*)
+update/sysctl: ${SYSCTL_CONF} target/bootstrap
+	@echo "Updating sysctl configuration"
+	cp sysctl.d/* ./mnt/etc/sysctl.d/
 
-	arch-chroot ./mnt dpkg-reconfigure locales tzdata
+target/nvidia: nvidia.deb requires-nvidia.txt target/bootstrap
+	@echo "Installing NVIDIA driver"
 
-	arch-chroot ./mnt apt install -y --no-install-recommends --show-progress -V \
-		`grep -vE "^\s*#" requires-kernel.txt | tr "\n" " "`
+	dpkg --root=./mnt -i nvidia.deb
+	cp ./mnt/var/nvidia-driver-local-repo-debian*/nvidia-driver-local-*-keyring.gpg ./mnt/usr/share/keyrings/
+
+	./chroot -r ./mnt apt update
+	./chroot -r ./mnt apt install -y --no-install-recommends --show-progress -V \
+		`grep -vE "^\s*#" requires-nvidia.txt | tr "\n" " "`
 
 	@touch $@
 
-target/driver: target/bootstrap
-	@echo "Installing NVIDIA and DOCA drivers"
+DOCA_MODULE_CONF := modules-load.d/ib.conf modules-load.d/rdma.conf 
+DOCA_NETWORK_CONF := systemd/network/20-bond1.netdev systemd/network/20-bond1.network systemd/network/20-ib-bond1.network
+target/doca: doca.deb requires-doca.txt ${DOCA_MODULE_CONF} ${DOCA_NETWORK_CONF} target/bootstrap 
+	@echo "Installing DOCA driver"
 
-	arch-chroot ./mnt apt update
-	arch-chroot ./mnt apt install -y --no-install-recommends --show-progress -V \
-		`grep -vE "^\s*#" requires-driver.txt | tr "\n" " "`
+	dpkg --root=./mnt -i doca.deb
 
-	@touch $@
-
-target/configure: target/driver
-	@echo "Setting root password"
-	cat passwd.txt | arch-chroot ./mnt chpasswd -e
-	
-	@echo "Setting hostname"
-	echo "${HOSTNAME}${HOSTID}" > ./mnt/etc/hostname
-
-	@echo "Setting root ssh authorized keys"
-	mkdir -p ./mnt/root/.ssh
-	cat ssh_keys.txt > ./mnt/root/.ssh/authorized_keys
+	./chroot -r ./mnt apt update
+	./chroot -r ./mnt apt install -y --no-install-recommends --show-progress -V \
+		`grep -vE "^\s*#" requires-doca.txt | tr "\n" " "`
 
 	@echo "Setting up OpenSM and InfiniBand modules"
-	cp modules-load.d/* ./mnt/etc/modules-load.d/
+	cp modules-load.d/{ib, rdma}.conf ./mnt/etc/modules-load.d/
 
-	@echo "Setting up networkd and resolved services"
-	arch-chroot ./mnt systemctl enable systemd-networkd systemd-resolved
-	ln -sf ../run/systemd/resolve/stub-resolv.conf ./mnt/etc/resolv.conf
-	cp systemd/network/20-bond0.netdev ./mnt/etc/systemd/network/20-bond0.netdev
-	sed 's/$${HOSTID}/${HOSTID}/g' systemd/network/20-bond0.network > ./mnt/etc/systemd/network/20-bond0.network
-	cp systemd/network/20-enp-bond0.network ./mnt/etc/systemd/network/20-enp-bond0.network
-    cp sysctl.d/* ./mnt/etc/sysctl.d/
-	
-	@echo "Setting up IP over IB"
-	cp systemd/network/20-bond1.netdev ./mnt/etc/systemd/network/20-bond1.netdev
+	@echo "Setting up OpenSM and InfiniBand network configuration"
+	cp systemd/network/20-bond1.netdev ./mnt/etc/systemd/network/
 	sed 's/$${HOSTID}/${HOSTID}/g' systemd/network/20-bond1.network > ./mnt/etc/systemd/network/20-bond1.network
-	cp systemd/network/20-ib-bond1.network ./mnt/etc/systemd/network/20-ib-bond1.network
+	cp systemd/network/20-ib-bond1.network ./mnt/etc/systemd/network/
 
 	@touch $@
 
-target/all: target/configure
+target/amd: amd.deb requires-amd.txt target/bootstrap
+	@echo "Installing AMD GPU drivers"
+
+	dpkg --root=./mnt -i amd.deb
+
+	./chroot -r ./mnt apt update
+	./chroot -r ./mnt apt install -y --no-install-recommends --show-progress -V \
+		`grep -vE "^\s*#" requires-amd.txt | tr "\n" " "`
+
+	echo "/opt/rocm/lib" >> ./mnt/etc/ld.so.conf.d/rocm.conf
+	echo "/opt/rocm/lib64" >> ./mnt/etc/ld.so.conf.d/rocm.conf
+	./chroot -r ./mnt ldconfig
+
+	@touch $@
+
+target/drivers: target/bootstrap
+ifeq ($(USE_NVIDIA), 1)
+	${MAKE} target/nvidia
+endif
+ifeq ($(USE_DOCA), 1)
+	${MAKE} target/doca
+endif
+ifeq ($(USE_AMD), 1)
+	${MAKE} target/amd
+endif
+
+update/configure: target/drivers
+	@echo "Configuring the system"
+
+	@echo "Setting up fstab"
+	${MAKE} update/fstab
+
+	@echo "Setting up kernel cmdline"
+	${MAKE} update/cmdline
+
+	@echo "Setting root password"
+	${MAKE} update/passwd
+
+	@echo "Setting hostname"
+	${MAKE} update/hostname
+
+	@echo "Setting root ssh authorized keys"
+	${MAKE} update/ssh-keys
+
+	@echo "Setting up network configuration"
+	${MAKE} update/network
+	
+	@echo "Setting up sysctl configuration"
+	${MAKE} update/sysctl
+
+all: update/configure
 
 test/boot:
 	@test "${DISK}" != "" || (echo "Specify DISK=/dev/..."; exit 1)
@@ -177,8 +303,8 @@ test/boot:
 		  -device virtio-net-pci,netdev=net0 \
 		  -device virtio-blk-pci,drive=disk0,bootindex=0
 
-test/chroot:
-	arch-chroot ./mnt
+test/chroot: target/bootstrap
+	./chroot -r ./mnt
 
 test/scrub:
 	btrfs scrub start -B mnt

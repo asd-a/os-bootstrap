@@ -1,0 +1,1 @@
+https://developer.download.nvidia.com/compute/nvidia-driver/595.71.05/local_installers/nvidia-driver-local-repo-debian13-595.71.05_1.0-1_amd64.deb

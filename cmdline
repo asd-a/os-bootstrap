@@ -1,0 +1,7 @@
+#!/bin/sh
+
+UUID_ROOT=$(findmnt -no UUID ./mnt)
+
+cat <<EOF
+root=UUID=$UUID_ROOT rw console=tty0 console=ttyS0,115200n8 iommu=pt
+EOF

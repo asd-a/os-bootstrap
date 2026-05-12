@@ -4,6 +4,7 @@ UUID_ROOT=$(findmnt -no UUID ./mnt)
 UUID_BOOT=$(findmnt -no UUID ./mnt/boot)
 
 NFS_OPTIONS="defaults,rdma,_netdev,noatime,x-systemd.device-timeout=10"
+
 PATERN="%s\t%s\t%s\t%s\t%s\t%s"
 
 BOOT=$(printf "$PATERN" "UUID=$UUID_BOOT" "/boot" "vfat" "defaults,umask=027" "0" "2")

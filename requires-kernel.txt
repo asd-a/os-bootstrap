@@ -29,13 +29,14 @@ zfs-dkms
 zfs-zed
 e2fsprogs
 fuse2fs
+gdisk
+parted
 
 # [systemd]
 systemd
 systemd-sysv
 systemd-boot
 systemd-boot-efi
-systemd-timesyncd
 systemd-resolved
 
 # [network]
@@ -47,6 +48,7 @@ openssh-server
 ipmitool
 openipmi
 ethtool
+gpg
 
 # [tools]
 pciutils
