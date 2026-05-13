@@ -162,7 +162,7 @@ rootfs.tar.xz: requires-basic.txt requires-kernel.txt passwd.txt id_ed25519 ssh_
 
 target/bootstrap: rootfs.tar.xz target/subvolume
 	@echo "Bootstrapping Debian into ./mnt"
-	tar -xapf rootfs.tar.gz -C ./mnt
+	tar -xapf rootfs.tar.xz -C ./mnt
 
 	@touch $@
 
