@@ -149,6 +149,7 @@ target/bootstrap: rootfs.tar.xz requires-kernel.txt target/subvolume
 	@echo "Bootstrapping Debian into ./mnt"
 	tar -xapf rootfs.tar.xz -C ./mnt
 
+	./chroot ./rootfs apt update
 	./chroot ./rootfs apt install -y --no-install-recommends --show-progress -V \
 		`grep -vE "^\s*#" requires-kernel.txt | tr "\n" " "`
 
