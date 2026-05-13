@@ -272,8 +272,8 @@ update/configure: target/drivers
 	@echo "Setting up fstab"
 	${MAKE} update/fstab
 
-	@echo "Setting up kernel cmdline"
-	${MAKE} update/cmdline
+	@echo "Setting boot configuration and kernel cmdline"
+	${MAKE} update/boot
 
 	@echo "Setting root password"
 	${MAKE} update/passwd
