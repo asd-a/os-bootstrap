@@ -96,15 +96,15 @@ target/subvolume: target/format
 
 nvidia.deb: nvidia-url.txt
 	@echo "Downloading NVIDIA driver deb package"
-	wget `cat nvidia-url.txt` -O $@
+	wget `cat nvidia-url.txt` -O - > $@
 
 doca.deb: doca-url.txt
 	@echo "Downloading DOCA driver deb package"
-	wget `cat doca-url.txt` -O $@
+	wget `cat doca-url.txt` -O - > $@
 
 amd.deb: amd-url.txt
 	@echo "Downloading AMD driver deb package"
-	wget `cat amd-url.txt` -O $@
+	wget `cat amd-url.txt` -O - > $@
 
 id_ed25519:
 	@echo "Generating SSH key pair"
