@@ -20,6 +20,7 @@ clean-key:
 clean:
 	rm -rf target
 	${MAKE} util/unmount
+	unmount -R ./rootfs/* || true
 	rm -rf rootfs
 	rm -rf mnt 
 	rm -rf qemu-run
@@ -176,6 +177,7 @@ update/ssh-keys: id_ed25519 ssh_keys.txt target/bootstrap
 	cat id_ed25519.pub >> ./mnt/root/.ssh/authorized_keys
 	cp id_ed25519 ./mnt/root/.ssh/
 	cp id_ed25519.pub ./mnt/root/.ssh/
+	./chroot -r ./mnt ssh-keygen -A
 
 update/hostname: target/bootstrap
 	@echo "Updating hostname"
