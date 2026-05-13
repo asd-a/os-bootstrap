@@ -206,7 +206,8 @@ update/sysctl: ${SYSCTL_CONF} target/bootstrap
 	@echo "Updating sysctl configuration"
 	cp sysctl.d/* ./mnt/etc/sysctl.d/
 
-target/nvidia: nvidia.deb requires-nvidia.txt target/bootstrap
+NVIDIA_MODULE_CONF := modules-load.d/nvidia.conf
+target/nvidia: nvidia.deb requires-nvidia.txt ${NVIDIA_MODULE_CONF} target/bootstrap
 	@echo "Installing NVIDIA driver"
 
 	dpkg --root=./mnt -i nvidia.deb
@@ -216,6 +217,9 @@ target/nvidia: nvidia.deb requires-nvidia.txt target/bootstrap
 	./chroot -r ./mnt apt install -y --no-install-recommends --show-progress -V \
 		`grep -vE "^\s*#" requires-nvidia.txt | tr "\n" " "`
 
+	@echo "Setting up NVIDIA modules"
+	cp modules-load.d/nvidia.conf ./mnt/etc/modules-load.d/
+	
 	@touch $@
 
 DOCA_MODULE_CONF := modules-load.d/ib.conf modules-load.d/rdma.conf 
