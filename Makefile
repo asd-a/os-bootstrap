@@ -183,9 +183,10 @@ update/hostname: target/bootstrap
 	@echo "Updating hostname"
 	echo ${HOSTNAME} > ./mnt/etc/hostname
 
-update/cmdline: cmdline target/bootstrap
-	@echo "Updating kernel cmdline"
+update/boot: cmdline target/bootstrap
+	@echo "Updating kernel cmdline and boot configuration"
 	./cmdline > ./mnt/etc/kernel/cmdline
+	./chroot -r ./mnt dpkg-reconfigure systemd-boot
 	./chroot -r ./mnt update-initramfs -u
 
 update/fstab: genfstab target/bootstrap
