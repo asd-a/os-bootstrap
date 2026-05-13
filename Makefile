@@ -138,34 +138,25 @@ rootfs.tar.xz: requires-basic.txt passwd.txt ssh_keys.txt
 	@echo "Setting root ssh authorized keys"
 	mkdir -p -m 700 ./rootfs/root/.ssh
 	cat ssh_keys.txt > ./rootfs/root/.ssh/authorized_keys
-	ssh-keygen -t ed25519 -f id_ed25519 -N "" -C "scc"
-	cat id_ed25519.pub >> ./rootfs/root/.ssh/authorized_keys
-	cp id_ed25519 ./rootfs/root/.ssh/
-	cp id_ed25519.pub ./rootfs/root/.ssh/
+	ssh-keygen -t ed25519 -f ./rootfs/root/.ssh/id_ed25519 -N "" -C "scc"
+	cat ./rootfs/root/.ssh/id_ed25519.pub >> ./rootfs/root/.ssh/authorized_keys
 
 	@echo "Packing root filesystem into $@"
 	tar -C rootfs -capf $@ .
 
 
-target/bootstrap: rootfs.tar.xz requires-kernel.txt nfs.conf target/subvolume
+target/bootstrap: rootfs.tar.xz requires-kernel.txt target/subvolume
 	@echo "Bootstrapping Debian into ./mnt"
 	tar -xapf rootfs.tar.xz -C ./mnt
 
 	./chroot ./rootfs apt install -y --no-install-recommends --show-progress -V \
 		`grep -vE "^\s*#" requires-kernel.txt | tr "\n" " "`
-	
+
 	@echo "Setting up networkd and resolved services"
 	./chroot ./rootfs systemctl enable systemd-networkd systemd-resolved
 	ln -sf ../run/systemd/resolve/stub-resolv.conf ./rootfs/etc/resolv.conf
 
-	@echo "Setting up NFS configuration"
-	cp nfs.conf ./rootfs/etc/nfs.conf
-
 	@touch $@
-
-update/passwd: passwd.txt target/bootstrap
-	@echo "Updating password"
-	cat passwd.txt | ./chroot -r ./mnt chpasswd -e
 
 update/hostname: target/bootstrap
 	@echo "Updating hostname"
@@ -174,7 +165,6 @@ update/hostname: target/bootstrap
 update/boot: cmdline target/bootstrap
 	@echo "Updating kernel cmdline and boot configuration"
 	./cmdline > ./mnt/etc/kernel/cmdline
-	./chroot -r ./mnt dpkg-reconfigure systemd-boot
 	./chroot -r ./mnt update-initramfs -u
 
 update/fstab: genfstab target/bootstrap
@@ -183,11 +173,16 @@ update/fstab: genfstab target/bootstrap
 	mkdir ./mnt/mnt/niuniu || true
 
 NETWORK_CONF := systemd/network/20-bond0.netdev systemd/network/20-bond0.network systemd/network/20-enp-bond0.network 
-update/network: ${NETWORK_CONF} target/bootstrap
+update/network: ${NETWORK_CONF} nfs.conf target/bootstrap
+
 	@echo "Updating network configuration"
 	cp systemd/network/20-bond0.netdev ./mnt/etc/systemd/network/
 	sed 's/$${HOSTID}/${HOSTID}/g' systemd/network/20-bond0.network > ./mnt/etc/systemd/network/20-bond0.network
 	cp systemd/network/20-enp-bond0.network ./mnt/etc/systemd/network/
+
+
+	@echo "Setting up NFS configuration"
+	cp nfs.conf ./rootfs/etc/nfs.conf
 
 SYSCTL_CONF := $(wildcard sysctl.d/*)
 update/sysctl: ${SYSCTL_CONF} target/bootstrap
@@ -266,9 +261,6 @@ update/configure: target/drivers
 
 	@echo "Setting boot configuration and kernel cmdline"
 	${MAKE} update/boot
-
-	@echo "Setting root password"
-	${MAKE} update/passwd
 
 	@echo "Setting hostname"
 	${MAKE} update/hostname
