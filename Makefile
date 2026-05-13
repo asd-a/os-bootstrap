@@ -143,9 +143,6 @@ rootfs.tar.xz: requires-basic.txt passwd.txt ssh_keys.txt
 	cp id_ed25519 ./rootfs/root/.ssh/
 	cp id_ed25519.pub ./rootfs/root/.ssh/
 
-	@echo "Setting up NFS configuration"
-	cp nfs.conf ./rootfs/etc/nfs.conf
-
 	@echo "Packing root filesystem into $@"
 	tar -C rootfs -capf $@ .
 
