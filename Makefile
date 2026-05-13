@@ -170,15 +170,6 @@ update/passwd: passwd.txt target/bootstrap
 	@echo "Updating password"
 	cat passwd.txt | ./chroot -r ./mnt chpasswd -e
 
-update/ssh-keys: id_ed25519 ssh_keys.txt target/bootstrap
-	@echo "Updating SSH authorized keys"
-	mkdir -p -m 700 ./mnt/root/.ssh
-	cat ssh_keys.txt > ./mnt/root/.ssh/authorized_keys
-	cat id_ed25519.pub >> ./mnt/root/.ssh/authorized_keys
-	cp id_ed25519 ./mnt/root/.ssh/
-	cp id_ed25519.pub ./mnt/root/.ssh/
-	./chroot -r ./mnt ssh-keygen -A
-
 update/hostname: target/bootstrap
 	@echo "Updating hostname"
 	echo "${HOSTNAME}${HOSTID}" > ./mnt/etc/hostname
@@ -284,9 +275,6 @@ update/configure: target/drivers
 
 	@echo "Setting hostname"
 	${MAKE} update/hostname
-
-	@echo "Setting root ssh authorized keys"
-	${MAKE} update/ssh-keys
 
 	@echo "Setting up network configuration"
 	${MAKE} update/network
