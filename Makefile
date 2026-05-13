@@ -106,7 +106,7 @@ amd.deb: amd-url.txt
 	@echo "Downloading AMD driver deb package"
 	wget `cat amd-url.txt` -O - > $@
 
-rootfs.tar.xz: requires-basic.txt requires-kernel.txt passwd.txt ssh_keys.txt nfs.conf
+rootfs.tar.xz: requires-basic.txt passwd.txt ssh_keys.txt
 	${MAKE} target/dependency
 	
 	mkdir -p rootfs
@@ -128,19 +128,12 @@ rootfs.tar.xz: requires-basic.txt requires-kernel.txt passwd.txt ssh_keys.txt nf
 
 	./chroot ./rootfs dpkg-reconfigure locales tzdata
 
-	./chroot ./rootfs apt install -y --no-install-recommends --show-progress -V \
-		`grep -vE "^\s*#" requires-kernel.txt | tr "\n" " "`
-	
-	@echo "Setting up networkd and resolved services"
-	./chroot ./rootfs systemctl enable systemd-networkd systemd-resolved
-	ln -sf ../run/systemd/resolve/stub-resolv.conf ./rootfs/etc/resolv.conf
-
 	@echo "Cleaning up apt cache"
-	./chroot -r ./rootfs apt clean
-	./chroot -r ./rootfs apt autoclean
+	./chroot ./rootfs apt clean
+	./chroot ./rootfs apt autoclean
 
 	@echo "Setting root password"
-	cat passwd.txt | ./chroot -r ./rootfs chpasswd -e
+	cat passwd.txt | ./chroot ./rootfs chpasswd -e
 
 	@echo "Setting root ssh authorized keys"
 	mkdir -p -m 700 ./rootfs/root/.ssh
@@ -157,9 +150,19 @@ rootfs.tar.xz: requires-basic.txt requires-kernel.txt passwd.txt ssh_keys.txt nf
 	tar -C rootfs -capf $@ .
 
 
-target/bootstrap: rootfs.tar.xz target/subvolume
+target/bootstrap: rootfs.tar.xz requires-kernel.txt nfs.conf target/subvolume
 	@echo "Bootstrapping Debian into ./mnt"
 	tar -xapf rootfs.tar.xz -C ./mnt
+
+	./chroot ./rootfs apt install -y --no-install-recommends --show-progress -V \
+		`grep -vE "^\s*#" requires-kernel.txt | tr "\n" " "`
+	
+	@echo "Setting up networkd and resolved services"
+	./chroot ./rootfs systemctl enable systemd-networkd systemd-resolved
+	ln -sf ../run/systemd/resolve/stub-resolv.conf ./rootfs/etc/resolv.conf
+
+	@echo "Setting up NFS configuration"
+	cp nfs.conf ./rootfs/etc/nfs.conf
 
 	@touch $@
 
