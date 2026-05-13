@@ -106,11 +106,7 @@ amd.deb: amd-url.txt
 	@echo "Downloading AMD driver deb package"
 	wget `cat amd-url.txt` -O - > $@
 
-id_ed25519:
-	@echo "Generating SSH key pair"
-	ssh-keygen -t ed25519 -f id_ed25519 -N ""
-
-rootfs.tar.xz: requires-basic.txt requires-kernel.txt passwd.txt id_ed25519 ssh_keys.txt nfs.conf
+rootfs.tar.xz: requires-basic.txt requires-kernel.txt passwd.txt ssh_keys.txt nfs.conf
 	${MAKE} target/dependency
 	
 	mkdir -p rootfs
@@ -149,6 +145,7 @@ rootfs.tar.xz: requires-basic.txt requires-kernel.txt passwd.txt id_ed25519 ssh_
 	@echo "Setting root ssh authorized keys"
 	mkdir -p -m 700 ./rootfs/root/.ssh
 	cat ssh_keys.txt > ./rootfs/root/.ssh/authorized_keys
+	ssh-keygen -t ed25519 -f id_ed25519 -N "" -C "scc"
 	cat id_ed25519.pub >> ./rootfs/root/.ssh/authorized_keys
 	cp id_ed25519 ./rootfs/root/.ssh/
 	cp id_ed25519.pub ./rootfs/root/.ssh/
