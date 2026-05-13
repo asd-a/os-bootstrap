@@ -12,7 +12,6 @@ ROOT=$(printf "$PATERN" "UUID=$UUID_ROOT" "/" "btrfs" "defaults" "0" "1")
 
 if [ -n "$NFS_SERVER" ]; then
     HOME=$(printf "$PATERN" "$NFS_SERVER:/home" "/home" "nfs" "$NFS_OPTIONS" "0" "0")
-    OPT=$(printf "$PATERN" "$NFS_SERVER:/opt" "/opt" "nfs" "$NFS_OPTIONS" "0" "0")
     MNT=$(printf "$PATERN" "$NFS_SERVER:/mnt/niuniu" "/mnt/niuniu" "nfs" "$NFS_OPTIONS" "0" "0")
     FSTAB=$(printf "%s\n%s\n%s\n%s\n%s" "$BOOT" "$ROOT" "$HOME" "$OPT" "$MNT")
 else
