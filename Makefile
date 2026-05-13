@@ -181,7 +181,7 @@ update/ssh-keys: id_ed25519 ssh_keys.txt target/bootstrap
 
 update/hostname: target/bootstrap
 	@echo "Updating hostname"
-	echo ${HOSTNAME} > ./mnt/etc/hostname
+	echo "${HOSTNAME}${HOSTID}" > ./mnt/etc/hostname
 
 update/boot: cmdline target/bootstrap
 	@echo "Updating kernel cmdline and boot configuration"
@@ -192,7 +192,7 @@ update/boot: cmdline target/bootstrap
 update/fstab: genfstab target/bootstrap
 	@echo "Updating fstab"
 	./genfstab > ./mnt/etc/fstab
-	mkdir ./mnt/mnt/niuniu
+	mkdir ./mnt/mnt/niuniu || true
 
 NETWORK_CONF := systemd/network/20-bond0.netdev systemd/network/20-bond0.network systemd/network/20-enp-bond0.network 
 update/network: ${NETWORK_CONF} target/bootstrap

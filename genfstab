@@ -13,6 +13,7 @@ HOME=$(printf "$PATERN" "10.0.0.0:/home" "/home" "nfs" "$NFS_OPTIONS" "0" "0")
 OPT=$(printf "$PATERN" "10.0.0.0:/opt" "/opt" "nfs" "$NFS_OPTIONS" "0" "0")
 MNT=$(printf "$PATERN" "10.0.0.0:/mnt/niuniu" "/mnt/niuniu" "nfs" "$NFS_OPTIONS" "0" "0")
 
+if SSH_SERVER
 cat <<EOF
 # /etc/fstab: static file system information.
 #
