@@ -229,7 +229,8 @@ target/doca: doca.deb requires-doca.txt ${DOCA_MODULE_CONF} ${DOCA_NETWORK_CONF}
 		`grep -vE "^\s*#" requires-doca.txt | tr "\n" " "`
 
 	@echo "Setting up OpenSM and InfiniBand modules"
-	cp modules-load.d/{ib, rdma}.conf ./mnt/etc/modules-load.d/
+	cp modules-load.d/ib.conf ./mnt/etc/modules-load.d/
+	cp modules-load.d/rdma.conf ./mnt/etc/modules-load.d/
 
 	@echo "Setting up OpenSM and InfiniBand network configuration"
 	cp systemd/network/20-bond1.netdev ./mnt/etc/systemd/network/
