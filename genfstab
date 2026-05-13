@@ -9,11 +9,16 @@ PATERN="%s\t%s\t%s\t%s\t%s\t%s"
 
 BOOT=$(printf "$PATERN" "UUID=$UUID_BOOT" "/boot" "vfat" "defaults,umask=027" "0" "2")
 ROOT=$(printf "$PATERN" "UUID=$UUID_ROOT" "/" "btrfs" "defaults" "0" "1")
-HOME=$(printf "$PATERN" "10.0.0.0:/home" "/home" "nfs" "$NFS_OPTIONS" "0" "0")
-OPT=$(printf "$PATERN" "10.0.0.0:/opt" "/opt" "nfs" "$NFS_OPTIONS" "0" "0")
-MNT=$(printf "$PATERN" "10.0.0.0:/mnt/niuniu" "/mnt/niuniu" "nfs" "$NFS_OPTIONS" "0" "0")
 
-if SSH_SERVER
+if [ -n "$NFS_SERVER" ]; then
+    HOME=$(printf "$PATERN" "$NFS_SERVER:/home" "/home" "nfs" "$NFS_OPTIONS" "0" "0")
+    OPT=$(printf "$PATERN" "$NFS_SERVER:/opt" "/opt" "nfs" "$NFS_OPTIONS" "0" "0")
+    MNT=$(printf "$PATERN" "$NFS_SERVER:/mnt/niuniu" "/mnt/niuniu" "nfs" "$NFS_OPTIONS" "0" "0")
+    FSTAB="$BOOT\n$ROOT\n$HOME\n$OPT\n$MNT"
+else
+    FSTAB="$BOOT\n$ROOT"
+fi
+
 cat <<EOF
 # /etc/fstab: static file system information.
 #
@@ -22,9 +27,5 @@ cat <<EOF
 # works even if disks are added and removed. See fstab(5).
 #
 # <file system>  <mount point>  <type>  <options>  <dump>  <pass>
-$BOOT
-$ROOT
-$HOME
-$OPT
-$MNT
+$FSTAB
 EOF
