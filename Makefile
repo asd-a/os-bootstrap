@@ -149,13 +149,13 @@ target/bootstrap: rootfs.tar.xz requires-kernel.txt target/subvolume
 	@echo "Bootstrapping Debian into ./mnt"
 	tar -xapf rootfs.tar.xz -C ./mnt
 
-	./chroot ./rootfs apt update
-	./chroot ./rootfs apt install -y --no-install-recommends --show-progress -V \
+	./chroot ./mnt apt update
+	./chroot ./mnt apt install -y --no-install-recommends --show-progress -V \
 		`grep -vE "^\s*#" requires-kernel.txt | tr "\n" " "`
 
 	@echo "Setting up networkd and resolved services"
-	./chroot ./rootfs systemctl enable systemd-networkd systemd-resolved
-	ln -sf ../run/systemd/resolve/stub-resolv.conf ./rootfs/etc/resolv.conf
+	./chroot ./mnt systemctl enable systemd-networkd systemd-resolved
+	ln -sf ../run/systemd/resolve/stub-resolv.conf ./mnt/etc/resolv.conf
 
 	@touch $@
 
@@ -183,7 +183,7 @@ update/network: ${NETWORK_CONF} nfs.conf target/bootstrap
 
 
 	@echo "Setting up NFS configuration"
-	cp nfs.conf ./rootfs/etc/nfs.conf
+	cp nfs.conf ./mnt/etc/nfs.conf
 
 SYSCTL_CONF := $(wildcard sysctl.d/*)
 update/sysctl: ${SYSCTL_CONF} target/bootstrap
