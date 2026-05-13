@@ -20,7 +20,7 @@ clean-key:
 clean:
 	rm -rf target
 	${MAKE} util/unmount
-	unmount -R ./rootfs/* || true
+	umount -R ./rootfs/* || true
 	rm -rf rootfs
 	rm -rf mnt 
 	rm -rf qemu-run
