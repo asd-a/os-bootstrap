@@ -6,6 +6,8 @@ USE_DOCA ?= 1
 USE_NVIDIA ?= 1
 USE_AMD ?= 0
 
+default: clean
+
 clean-all: clean clean-deb clean-key clean-rootfs
 
 clean-deb: 
@@ -29,10 +31,10 @@ util/mount:
 	@test "${DISK}" != "" || (echo "Specify DISK=/dev/..."; exit 1)
 
 	mount --mkdir `lsblk -nlo PATH ${DISK} | awk 'NR==3 {print}'` ./mnt
-	mount --mkdir -o fmask=027,umask=027 `lsblk -nlo PATH ${DISK} | awk 'NR==2 {print}'` ./mnt/boot
+	mount --mkdir -o fmask=027,umask=027 `lsblk -nlo PATH ${DISK} | awk 'NR==2 {print}'` ./mnt/boot/efi
 
 util/unmount:
-	umount ./mnt/boot 	|| true
+	umount ./mnt/boot/efi 	|| true
 	umount ./mnt 		|| true
 
 target/dependency:
@@ -191,7 +193,8 @@ update/sysctl: ${SYSCTL_CONF} target/bootstrap
 	cp sysctl.d/* ./mnt/etc/sysctl.d/
 
 NVIDIA_MODULE_CONF := modules-load.d/nvidia.conf
-target/nvidia: nvidia.deb requires-nvidia.txt ${NVIDIA_MODULE_CONF} target/bootstrap
+NVIDIA_MODULE_PROBE := modprobe.d/nvidia-profiling.conf
+target/nvidia: nvidia.deb requires-nvidia.txt ${NVIDIA_MODULE_CONF} ${NVIDIA_MODULE_PROBE} target/bootstrap
 	@echo "Installing NVIDIA driver"
 
 	dpkg --root=./mnt -i nvidia.deb
@@ -203,6 +206,7 @@ target/nvidia: nvidia.deb requires-nvidia.txt ${NVIDIA_MODULE_CONF} target/boots
 
 	@echo "Setting up NVIDIA modules"
 	cp modules-load.d/nvidia.conf ./mnt/etc/modules-load.d/
+	cp modprobe.d/nvidia-profiling.conf ./mnt/etc/modprobe.d/
 	
 	@touch $@
 
@@ -281,7 +285,7 @@ test/boot:
 
 	mkdir -p qemu-run
 	cp /usr/share/OVMF/OVMF_VARS_4M.fd ./qemu-run/OVMF_VARS_4M.fd
-	qemu-system-x86_64 -m 4g -smp 8 -nographic \
+	qemu-system-x86_64 -m 4g -smp 8 -nographic -cpu host -enable-kvm \
 		  -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
 		  -drive if=pflash,format=raw,file=./qemu-run/OVMF_VARS_4M.fd \
 		  -drive file=${DISK},format=raw,if=none,id=disk0,cache=directsync \

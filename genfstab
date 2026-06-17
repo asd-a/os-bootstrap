@@ -1,13 +1,13 @@
 #!/bin/sh
 
 UUID_ROOT=$(findmnt -no UUID ./mnt)
-UUID_BOOT=$(findmnt -no UUID ./mnt/boot)
+UUID_BOOT=$(findmnt -no UUID ./mnt/boot/efi)
 
 NFS_OPTIONS="defaults,rdma,_netdev,noatime,x-systemd.device-timeout=10"
 
 PATERN="%s\t%s\t%s\t%s\t%s\t%s"
 
-BOOT=$(printf "$PATERN" "UUID=$UUID_BOOT" "/boot" "vfat" "defaults,umask=027" "0" "2")
+BOOT=$(printf "$PATERN" "UUID=$UUID_BOOT" "/boot/efi" "vfat" "defaults,umask=027" "0" "2")
 ROOT=$(printf "$PATERN" "UUID=$UUID_ROOT" "/" "btrfs" "defaults" "0" "1")
 
 if [ -n "$NFS_SERVER" ]; then
