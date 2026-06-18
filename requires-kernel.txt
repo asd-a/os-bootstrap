@@ -74,3 +74,4 @@ unzip
 lshw
 dmidecode
 clustershell
+gfortran
