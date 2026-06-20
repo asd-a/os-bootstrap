@@ -7,3 +7,10 @@ qemu-run
 id_ed25519
 id_ed25519.pub
 *.tar.xz
+
+!gdrcopy_2.6-1_amd64.deb
+!gdrcopy-tests_2.6-1_amd64.deb
+!gdrdrv-dkms_2.6-1_amd64.deb
+!libgdrapi_2.6-1_amd64.deb
+
+!amd_hsmp.tar.xz

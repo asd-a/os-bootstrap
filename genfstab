@@ -10,13 +10,9 @@ PATERN="%s\t%s\t%s\t%s\t%s\t%s"
 BOOT=$(printf "$PATERN" "UUID=$UUID_BOOT" "/boot/efi" "vfat" "defaults,umask=027" "0" "2")
 ROOT=$(printf "$PATERN" "UUID=$UUID_ROOT" "/" "btrfs" "defaults" "0" "1")
 
-if [ -n "$NFS_SERVER" ]; then
-    HOME=$(printf "$PATERN" "$NFS_SERVER:/home" "/home" "nfs" "$NFS_OPTIONS" "0" "0")
-    MNT=$(printf "$PATERN" "$NFS_SERVER:/mnt/niuniu" "/mnt/niuniu" "nfs" "$NFS_OPTIONS" "0" "0")
-    FSTAB=$(printf "%s\n%s\n%s\n%s" "$BOOT" "$ROOT" "$HOME" "$MNT")
-else
-    FSTAB=$(printf "%s\n%s" "$BOOT" "$ROOT")
-fi
+HOME=$(printf "$PATERN" "# 10.0.0.1:/home" "/home" "nfs" "$NFS_OPTIONS" "0" "0")
+MNT=$(printf "$PATERN" "# 10.0.0.1:/mnt/niuniu" "/mnt/niuniu" "nfs" "$NFS_OPTIONS" "0" "0")
+FSTAB=$(printf "%s\n%s\n%s\n%s" "$BOOT" "$ROOT" "$HOME" "$MNT")
 
 cat <<EOF
 # /etc/fstab: static file system information.

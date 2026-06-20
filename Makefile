@@ -4,7 +4,7 @@ HOSTNAME ?= i
 
 USE_DOCA ?= 1
 USE_NVIDIA ?= 1
-USE_AMD ?= 0
+USE_AMD ?= 1
 
 default: clean
 
@@ -212,6 +212,7 @@ target/nvidia: nvidia.deb requires-nvidia.txt ${NVIDIA_MODULE_CONF} ${NVIDIA_MOD
 
 DOCA_MODULE_CONF := modules-load.d/ib.conf modules-load.d/rdma.conf 
 DOCA_NETWORK_CONF := systemd/network/20-bond1.netdev systemd/network/20-bond1.network systemd/network/20-ib-bond1.network
+
 target/doca: doca.deb requires-doca.txt ${DOCA_MODULE_CONF} ${DOCA_NETWORK_CONF} target/bootstrap 
 	@echo "Installing DOCA driver"
 
@@ -230,21 +231,22 @@ target/doca: doca.deb requires-doca.txt ${DOCA_MODULE_CONF} ${DOCA_NETWORK_CONF}
 	sed 's/$${HOSTID}/${HOSTID}/g' systemd/network/20-bond1.network > ./mnt/etc/systemd/network/20-bond1.network
 	cp systemd/network/20-ib-bond1.network ./mnt/etc/systemd/network/
 
+	dpkg --root=./mnt -i gdrdrv-dkms_2.6-1_amd64.deb
+	dpkg --root=./mnt -i libgdrapi_2.6-1_amd64.deb
+	dpkg --root=./mnt -i gdrcopy-tests_2.6-1_amd64.deb
+	dpkg --root=./mnt -i gdrcopy_2.6-1_amd64.deb
+
 	@touch $@
 
-target/amd: amd.deb requires-amd.txt target/bootstrap
+target/amd: amd_hsmp.tar.xz modules-load.d/amd_hsmp.conf target/bootstrap
 	@echo "Installing AMD GPU drivers"
 
-	dpkg --root=./mnt -i amd.deb
-
-	./chroot -r ./mnt apt update
-	./chroot -r ./mnt apt install -y --no-install-recommends --show-progress -V \
-		`grep -vE "^\s*#" requires-amd.txt | tr "\n" " "`
-
-	echo "/opt/rocm/lib" >> ./mnt/etc/ld.so.conf.d/rocm.conf
-	echo "/opt/rocm/lib64" >> ./mnt/etc/ld.so.conf.d/rocm.conf
-	./chroot -r ./mnt ldconfig
-
+	tar -xaf amd_hsmp.tar.xz -C ./mnt/usr/src/
+	./chroot -r ./mnt dkms add amd_hsmp/2.4
+	./chroot -r ./mnt dkms build amd_hsmp/2.4
+	./chroot -r ./mnt dkms install amd_hsmp/2.4
+	cp modules-load.d/amd_hsmp.conf ./mnt/etc/modules-load.d/
+	
 	@touch $@
 
 target/drivers: target/bootstrap
