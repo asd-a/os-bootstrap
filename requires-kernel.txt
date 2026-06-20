@@ -32,6 +32,22 @@ fuse2fs
 gdisk
 parted
 
+# [beegfs]
+beegfs-mgmtd
+libbeegfs-license
+beegfs-meta
+beegfs-storage
+beegfs-client
+libbeegfs-ib
+beegfs-tools
+beegfs-utils
+beegfs-copy
+beegfs-mon
+beeond
+beegfs-sync
+beegfs-remote
+beegfs-watch
+
 # [systemd]
 systemd
 systemd-sysv

@@ -151,6 +151,12 @@ target/bootstrap: rootfs.tar.xz requires-kernel.txt target/subvolume
 	@echo "Bootstrapping Debian into ./mnt"
 	tar -xapf rootfs.tar.xz -C ./mnt
 
+	wget https://www.beegfs.io/release/beegfs_8.3/gpg/GPG-KEY-beegfs -O \
+		./mnt/etc/apt/trusted.gpg.d/beegfs.asc
+	wget https://www.beegfs.io/release/beegfs_8.3/dists/beegfs-trixie.list \
+		-O ./mnt/etc/apt/sources.list.d/beegfs.list
+	echo 'zfs-dkms zfs-dkms/note-incompatible-licenses note true' | \
+		./chroot ./mnt debconf-set-selections
 	./chroot ./mnt apt update
 	./chroot ./mnt apt install -y --no-install-recommends --show-progress -V \
 		`grep -vE "^\s*#" requires-kernel.txt | tr "\n" " "`
@@ -243,8 +249,8 @@ target/amd: amd_hsmp.tar.xz modules-load.d/amd_hsmp.conf target/bootstrap
 
 	tar -xaf amd_hsmp.tar.xz -C ./mnt/usr/src/
 	./chroot -r ./mnt dkms add amd_hsmp/2.4
-	./chroot -r ./mnt dkms build amd_hsmp/2.4
-	./chroot -r ./mnt dkms install amd_hsmp/2.4
+# 	./chroot -r ./mnt dkms build amd_hsmp/2.4
+# 	./chroot -r ./mnt dkms install amd_hsmp/2.4
 	cp modules-load.d/amd_hsmp.conf ./mnt/etc/modules-load.d/
 	
 	@touch $@
